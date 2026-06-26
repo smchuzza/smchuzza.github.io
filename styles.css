@@ -1,0 +1,490 @@
+/* ── Reset & base ── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0a;
+  --win-bg: #3a3a3a;
+  --win-border: #1a1a1a;
+  --win-title: #2e2e2e;
+  --win-title-active: #4a4a4a;
+  --text: #c8c8c8;
+  --term-green: #33ff66;
+  --term-dim: #6fcf8a;
+  --accent: #6a8fcf;
+  --shadow: 2px 2px 6px rgba(0,0,0,0.6);
+  --font-mono: 'IBM Plex Mono', 'DejaVu Sans Mono', 'Liberation Mono', 'Ubuntu Mono', Consolas, monospace;
+  --font-ui: 'DejaVu Sans', 'Liberation Sans', 'Lucida Grande', system-ui, sans-serif;
+  --font-ui-size: 12px;
+  --font-mono-sm: 11px;
+  --font-mono-xs: 10px;
+  --transition: 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --transition: 0s; }
+  .sha-dot { animation: none !important; }
+  .win { transition: none !important; }
+}
+
+html, body {
+  background: var(--bg);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  font-family: var(--font-ui);
+  font-size: var(--font-ui-size);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Crisp monospace for all terminal-style UI */
+.desktop,
+.hash-dock,
+.win-body,
+.vm-screen,
+.vm-screen div,
+.vm-screen span,
+.sha-panel,
+.qubit-panel {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  font-feature-settings: 'liga' 0;
+}
+
+/* ── Game of Life background ── */
+#canvas {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1.2;
+  z-index: 0;
+  pointer-events: auto;
+}
+
+.cell {
+  position: absolute;
+  opacity: 0;
+}
+
+/* ── Desktop layer ── */
+.desktop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.desktop > .win {
+  pointer-events: auto;
+}
+
+/* ── Hash monitor dock ── */
+.hash-dock {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.4));
+  pointer-events: auto;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.hash-dock .win {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  flex: 1 1 130px;
+  min-width: 124px;
+  max-width: 220px;
+  height: 148px !important;
+  box-shadow: var(--shadow);
+}
+
+/* ── Window chrome (GTK2 / Motif) ── */
+.win {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--win-bg);
+  border: 2px solid var(--win-border);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow var(--transition), border-color var(--transition);
+  outline: none;
+}
+
+.win:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.win-focused {
+  border-color: #5a7ab0;
+  box-shadow: 3px 3px 10px rgba(0,0,0,0.75);
+}
+
+.win-minimized {
+  height: 28px !important;
+  min-height: 28px !important;
+  overflow: hidden;
+}
+
+.win-minimized .win-body { display: none; }
+
+.win-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  background: linear-gradient(180deg, #555 0%, var(--win-title) 40%, #2a2a2a 100%);
+  border-bottom: 1px solid #111;
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.win-focused .win-titlebar {
+  background: linear-gradient(180deg, #6a7a9a 0%, var(--win-title-active) 40%, #3a3a4a 100%);
+}
+
+.win-icon {
+  font-size: 11px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.win-title {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: var(--font-ui-size);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #e8e8e8;
+  text-shadow: none;
+  letter-spacing: 0.01em;
+}
+
+.win-controls {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.win-btn {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #222;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #666, #444);
+  color: #eee;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-ui);
+}
+
+.win-btn:hover { background: linear-gradient(180deg, #777, #555); }
+.win-btn:focus-visible { outline: 1px solid var(--accent); }
+
+.win-btn-close:hover {
+  background: linear-gradient(180deg, #c44, #822);
+}
+
+.win-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: #1e1e1e;
+}
+
+/* ── Resize handles ── */
+.win-resize {
+  position: absolute;
+  z-index: 5;
+}
+.win-resize-n  { top: -3px; left: 8px; right: 8px; height: 6px; cursor: n-resize; }
+.win-resize-s  { bottom: -3px; left: 8px; right: 8px; height: 6px; cursor: s-resize; }
+.win-resize-e  { right: -3px; top: 8px; bottom: 8px; width: 6px; cursor: e-resize; }
+.win-resize-w  { left: -3px; top: 8px; bottom: 8px; width: 6px; cursor: w-resize; }
+.win-resize-ne { top: -3px; right: -3px; width: 10px; height: 10px; cursor: ne-resize; }
+.win-resize-nw { top: -3px; left: -3px; width: 10px; height: 10px; cursor: nw-resize; }
+.win-resize-se { bottom: -3px; right: -3px; width: 10px; height: 10px; cursor: se-resize; }
+.win-resize-sw { bottom: -3px; left: -3px; width: 10px; height: 10px; cursor: sw-resize; }
+
+body.wm-dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+
+/* ── VM window ── */
+.win-vm .win-body { background: #000; }
+
+.vm-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vm-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.vm-screen-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  outline: none;
+  background: #000;
+  position: absolute;
+  inset: 0;
+}
+
+.vm-screen-wrap:focus-visible {
+  outline: 2px solid var(--term-green);
+  outline-offset: -2px;
+}
+
+.vm-screen {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  line-height: 14px !important;
+  letter-spacing: 0;
+}
+
+/* v86 VGA text layer (div/span terminal) */
+.vm-screen > div {
+  font: 12px/14px var(--font-mono) !important;
+  white-space: pre !important;
+  color: #e8e8e8;
+  padding: 2px 4px;
+}
+
+.vm-screen span {
+  font: inherit !important;
+}
+
+.vm-screen canvas {
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: auto;
+}
+
+.vm-status {
+  height: 20px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: var(--font-mono-xs);
+  font-weight: 400;
+  color: var(--term-green);
+  background: #0a0a0a;
+  border-top: 1px solid #222;
+  line-height: 20px;
+}
+
+.vm-progress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.92);
+  z-index: 10;
+  transition: opacity 0.4s;
+}
+
+.vm-progress-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vm-progress-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--term-green);
+}
+
+.vm-progress-bar {
+  width: 70%;
+  height: 6px;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vm-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--term-green);
+  transition: width 0.2s;
+}
+
+.vm-error {
+  color: #f66;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+/* ── SHA monitor panels ── */
+.win-sha .win-body { background: #2a2a2a; padding: 0; }
+.win-sha .win-titlebar { height: 24px; }
+.win-sha .win-title { font-size: var(--font-mono-xs); }
+
+.sha-content { height: 100%; }
+
+.sha-panel {
+  padding: 4px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--font-mono-sm);
+  font-weight: 400;
+  line-height: 1.55;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sha-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.sha-key {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.sha-val {
+  color: var(--term-green);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sha-hash { font-size: var(--font-mono-xs); color: var(--term-dim); font-weight: 400; }
+
+.sha-activity {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+  justify-content: flex-end;
+}
+
+.sha-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #333;
+  animation: sha-pulse 1.2s ease-in-out infinite;
+}
+
+.sha-dot:nth-child(2) { animation-delay: 0.2s; }
+.sha-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.sha-active .sha-dot { background: var(--term-green); }
+
+@keyframes sha-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.mono { font-family: var(--font-mono); }
+
+/* ── Qubit simulator ── */
+.win-qubit .win-body { background: #1a1a1a; padding: 0; }
+
+.qubit-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  gap: 5px 8px;
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--font-mono-sm);
+  font-weight: 400;
+  color: var(--term-green);
+  height: 100%;
+}
+
+.qubit-state { grid-column: 1; grid-row: 1 / 3; line-height: 1.6; }
+.qubit-ket { word-break: break-all; font-weight: 600; }
+.qubit-sphere {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  width: 72px;
+  height: 72px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 50%;
+}
+.qubit-gates {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.qubit-gates button {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: var(--font-mono-sm);
+  font-weight: 600;
+  background: #2a2a2a;
+  color: var(--term-green);
+  border: 1px solid #444;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.qubit-gates button:hover { background: #3a3a3a; }
+.qubit-gates button:focus-visible { outline: 1px solid var(--accent); }
+.qubit-meas { grid-column: 1 / -1; font-size: var(--font-mono-xs); color: #999; }
+.qubit-meas-hidden { visibility: hidden; }
+.qubit-error { padding: 8px; color: #f66; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .hash-dock .win {
+    flex: 1 1 112px;
+    min-width: 108px;
+    height: 136px !important;
+  }
+
+  .sha-panel { font-size: var(--font-mono-xs); }
+}
+
+@media (max-width: 600px) {
+  .hash-dock .win {
+    flex: 1 1 46%;
+    max-width: none;
+  }
+}
